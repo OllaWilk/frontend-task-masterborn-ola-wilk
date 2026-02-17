@@ -2,7 +2,7 @@
 
 ## Time Spent
 
-Total time: 4.5h (approximate)
+Total time: 4h
 
 ## Ticket Triage
 
@@ -10,28 +10,39 @@ Total time: 4.5h (approximate)
 
 List the ticket numbers you worked on, in the order you addressed them:
 
-1. **CFG-142**: Price shows wrong value after rapid option changes – naprawiłam race condition przy asynchronicznym pobieraniu ceny (porównywanie niepasujących identyfikatorów requestów).
+1. **CFG-148**: Investigated crash scenario when deselecting “Include Packaging” (blocker / white screen) — could not reproduce reliably in my environment.
+2. **CFG-142**: Fixed incorrect/stale price after rapid option changes (race condition in async pricing).
+3. **CFG-156**: Fixed missing/unstable keys in list rendering to improve UI stability.
 
 ### Tickets I Deprioritized
 
 List tickets you intentionally skipped and why:
 
-| Ticket  | Reason                                                                                   |
-| ------- | ---------------------------------------------------------------------------------------- |
-| CFG-143 | Skupiłam się na CFG-142 jako blocking; memory/performance wymaga dłuższego profilowania. |
-| CFG-144 | Konflikt z CFG-145 (usunąć vs ulepszyć Quick Add) – czekam na decyzję produktu.          |
-| CFG-145 | Jak wyżej.                                                                               |
-| CFG-146 | Niski priorytet (kosmetyka timezone).                                                    |
-| CFG-147 | Trudne do odtworzenia bez konkretnego linku od customera.                                |
-| CFG-148 | Nie zdążyłam w tej iteracji.                                                             |
+| Ticket  | Reason                 |
+| ------- | ---------------------- |
+| CFG-148 | Blocker, but I could not reproduce it reliably in my environment within the timebox. Without a consistent repro + stack trace, fixing it would be guesswork and could introduce regressions. |
+| CFG-152 | Important (enterprise compliance), but it requires broader UI changes and careful testing. I prioritized revenue/core correctness items first within 4 hours. |
+| CFG-147 | Likely related to URL encoding / special characters, but I did not have a concrete failing share link to reproduce and debug efficiently. |
+| CFG-143 | This ticket requires proper profiling (Chrome DevTools Performance/Memory and the React DevTools Profiler). Due to the time spent on CFG-148 and then focusing on CFG-142 and CFG-156 within the 4-hour limit, I deprioritized it to avoid a rushed, unverified fix. As a next step, I would record a Performance profile while repeatedly changing options and resizing the window, then check for increasing memory usage (e.g., detached DOM nodes/event listeners) and React commit times to identify the main bottleneck. |
+| CFG-151 | UX improvement (user-friendly errors), but not a blocker compared to crash/pricing. Left for later once stability is ensured. |
+| CFG-149 |Nice-to-have polish; I focused on fixing correctness first (CFG-142). |
+| CFG-150 | Mobile layout issue; lower impact than pricing/reliability. Would address after core flow is stable. |
+| CFG-146 | Cosmetic timezone issue; low impact for the demo compared to core flow issues. |
+| CFG-154 | Ticket is ambiguous (business rule vs UI copy). Needs product clarification before changing behaviour. |
+| CFG-144 | Requires product decision before implementation. |
+| CFG-145 | Requires product decision before implementation. |
+| CFG-157 | UX improvement, but not critical for the demo and larger to implement/test properly |
+| CFG-155 | Nice-to-have feature; not critical within a 4-hour scope. |
+| CFG-153 | Large feature (estimated weeks). Out of scope for the 4-hour assignment. |
 
 ### Tickets That Need Clarification
 
 List any tickets where you couldn't proceed due to ambiguity:
 
-| Ticket            | Question                                                                   |
-| ----------------- | -------------------------------------------------------------------------- |
-| CFG-144 / CFG-145 | Quick Add: usunąć (144) czy dodać skrót (145)? Potrzebna decyzja produktu. |
+| Ticket  | Question                  |
+| ------- | ------------------------- |
+| CFG-144 vs CFG-145 |No design is needed for CFG-144 (it’s removal), but the requirements conflict: remove Quick Add vs improve it. Please confirm the product decision before implementation. |
+| CFG-154 | Requirements are unclear and the ticket notes are inconsistent. Waiting for Sarah’s update/confirmation on the intended discount threshold and UI wording. |
 
 ---
 
@@ -41,33 +52,31 @@ List any tickets where you couldn't proceed due to ambiguity:
 
 Describe the most important bugs you identified:
 
-#### Issue 1: Race condition – cena „cofa się” przy szybkiej zmianie opcji
+#### Issue 1: [Title]
 
-**Ticket(s):** CFG-142
+**Ticket(s):** CFG-XXX
 
 **What was the bug?**
 
-Przy szybkiej zmianie kilku opcji (np. rozmiar → kolor → materiał) wysyłane było kilka requestów do `calculatePrice`. Odpowiedzi wracały w losowej kolejności (ze względu na `randomDelay` 100–600 ms). Hook aktualizował stan (`setPrice`, `setFormattedTotal`) na podstawie warunku, który **nie działał poprawnie**: porównywał `response.timestamp` z API z wartością po stronie klienta. W oryginale API zwracało wewnętrzny licznik (1, 2, 3…), a w hooku używane było np. `Date.now()` albo inna skala – więc porównanie było błędne (np. zawsze false albo akceptowanie złej odpowiedzi). W efekcie starsza odpowiedź mogła nadpisać nowszą i na ekranie pokazywała się cena dla wcześniejszego wyboru (np. Medium zamiast XL).
+[Describe the root cause]
 
 **How did you find it?**
 
-1. Odtworzyłam błąd: uruchomiłam aplikację, szybko zmieniałam rozmiar/kolor kilka razy i patrzyłam na Total Price – czasem cena „cofała się”.
-2. W DevTools → Network zobaczyłam, że przy szybkich zmianach leci kilka requestów i odpowiedzi wracają w różnej kolejności.
-3. Przeszukałam kod po „Total Price” / `formattedTotal` → znalazłam `ProductConfigurator.tsx` i hook `usePriceCalculation`.
-4. W hooku znalazłam wywołanie `calculatePrice` i warunek przed `setPrice`/`setFormattedTotal` (coś w stylu sprawdzenia `response.timestamp`).
-5. W `api.ts` sprawdziłam, co zwraca `calculatePrice`: pole `timestamp` (np. wewnętrzny `requestId` 1, 2, 3…).
-6. Porównałam to z tym, co hook ustawia jako „najnowszy request” (ref) – wyszło, że **skale się nie zgadzają** (małe liczby z API vs duże z `Date.now()` albo odwrotna logika). Dodałam tymczasowo `console.log` w hooku przy starcie requestu i przy odpowiedzi, żeby zobaczyć wartości `response.timestamp` i ref – potwierdziło się, że warunek nie odrzucał starych odpowiedzi albo nigdy nie był spełniony.
+[Your debugging process]
 
 **How did you fix it?**
 
-- W **hooku** (`usePriceCalculation.ts`): dodałam `requestIdRef` (licznik 0, 1, 2…). Na początku każdego `fetchPrice` robię `const myRequestId = ++requestIdRef.current` i przekazuję `myRequestId` do `calculatePrice(config, product, myRequestId)`. Stan aktualizuję **tylko gdy** `response.timestamp === myRequestId`. W bloku `catch` ustawiam błąd tylko gdy `requestIdRef.current === myRequestId`.
-- W **API** (`api.ts`): dodałam opcjonalny argument `clientRequestId?: number` do `calculatePrice` i w zwracanym obiekcie ustawiam `timestamp: clientRequestId ?? requestId`, żeby hook dostał z powrotem ten sam id, który wysłał, i mógł go porównać.
-
-Dzięki temu tylko odpowiedź dla **aktualnego** requestu (ten sam id) aktualizuje cenę; starsze odpowiedzi są ignorowane.
+[Explain your solution]
 
 **Why this approach?**
 
-Rozważałam debounce (opóźnienie wywołań), ale to by tylko maskowało problem i opóźniało pokazanie ceny. Poprawne rozwiązanie to jawne oznaczanie requestu po stronie klienta i porównywanie „czy ta odpowiedź jest do mojego ostatniego wywołania” – to standardowy wzorzec przy race conditions z async API.
+[Any alternatives you considered]
+
+---
+
+#### Issue 2: [Title]
+
+[Same structure as above]
 
 ---
 
@@ -75,7 +84,8 @@ Rozważałam debounce (opóźnienie wywołań), ale to by tylko maskowało probl
 
 Brief description of any other modifications:
 
-- Brak innych zmian – skupiłam się wyłącznie na CFG-142 (hook + API). `ProductConfigurator.tsx` nie wymagał zmian w logice wyświetlania.
+- [Change 1]
+- [Change 2]
 
 ---
 
@@ -85,19 +95,16 @@ Brief description of any other modifications:
 
 List any issues you noticed but intentionally left:
 
-| Issue                                                                                                                      | Why I Left It                                                                    |
-| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `useDebouncedPriceCalculation` w tym samym pliku nie używa `clientRequestId` i nadal może mieć race przy szybkich zmianach | Poza scope CFG-142; gdyby był używany w configuratorze, warto by go ujednolicić. |
-| Komentarz w API „Track request IDs for debugging (and to create the race condition bug)”                                   | Zostawiłam – dokumentuje historię.                                               |
-| Import w hooku: `from "../components/ProductConfigurator/types"` (hook jest w `src/hooks/`)                                | Działa; ewentualna refaktoryzacja ścieżek na później.                            |
+| Issue   | Why I Left It                                         |
+| ------- | ----------------------------------------------------- |
+| [Issue] | [Reason - out of scope, time, needs discussion, etc.] |
 
 ### Potential Improvements for the Future
 
 If you had more time, what would you improve?
 
-1. Dodać ten sam mechanizm `clientRequestId` do `useDebouncedPriceCalculation`, jeśli jest używany.
-2. Prosty test E2E lub unit: „szybko zmień opcje 5 razy, sprawdź że wyświetlana cena odpowiada ostatniej konfiguracji”.
-3. Ujednolicić lokalizację hooka (hooks vs ProductConfigurator) i ścieżki importów.
+1. [Improvement 1]
+2. [Improvement 2]
 
 ---
 
@@ -105,9 +112,8 @@ If you had more time, what would you improve?
 
 Questions you would ask in a real scenario:
 
-1. Quick Add: finalna decyzja – usuwamy (CFG-144) czy zostawiamy i dodajemy skrót (CFG-145)?
-2. Czy `useDebouncedPriceCalculation` jest gdzieś używany? Jeśli tak, czy mam go zabezpieczyć tym samym mechanizmem co `usePriceCalculation`?
-3. Czy TechStyle demo ma konkretne scenariusze (np. lista opcji do szybkiego testu), które powinnam zweryfikować po fixie?
+1. [Question 1]
+2. [Question 2]
 
 ---
 
@@ -115,9 +121,8 @@ Questions you would ask in a real scenario:
 
 List any assumptions you made to proceed:
 
-1. „Wrong value” w ticketcie = wyświetlana cena nie pasuje do aktualnej konfiguracji (np. cena za poprzedni wybór) – nie błąd samego algorytmu liczenia.
-2. Naprawa ma być po stronie frontu (hook + mock API); backend w tym zadaniu nie istnieje / nie jest w scope.
-3. Zachowanie przy pojedynczej, spokojnej zmianie opcji ma zostać takie samo (brak regresji).
+1. [Assumption 1]
+2. [Assumption 2]
 
 ---
 
@@ -125,20 +130,34 @@ List any assumptions you made to proceed:
 
 ### What went well?
 
-Odtworzenie błędu z opisu ticketu było proste. Śledzenie od UI (gdzie jest cena) → hook → API pozwoliło szybko zawęzić problem do jednego miejsca (warunek przy aktualizacji stanu i niezgodność identyfikatorów). Sprawdzenie w Network i tymczasowe logi potwierdziły diagnozę.
+[Your reflection]
 
 ### What was challenging?
 
-Na początku nie byłam pewna, czy problem jest w kolejności requestów, w cache, czy w samym liczeniu – musiałam przejść krok po kroku od „co widać na ekranie” do „skąd to się bierze” i dopiero wtedy wpadłam na porównanie `timestamp` vs ref.
+[Your reflection]
 
 ### What would you do differently with more time?
 
-Dodałabym test (np. w Vitest) symulujący kilka równoległych odpowiedzi z różnymi `timestamp` i sprawdzający, że stan aktualizuje się tylko dla najnowszego requestId. Przydałby się też krótki komentarz w hooku przy `requestIdRef` / przy warunku `response.timestamp === myRequestId`, żeby następna osoba od razu wiedziała, po co to jest.
+[Your reflection]
 
 ---
 
 ## Additional Notes
 
+I used a simple prioritization framework to decide what to work on within the 4-hour timebox:
+
+Hotfix / Blockers first – anything that crashes the app or breaks the critical user flow must be addressed first, because it can completely prevent usage and directly impact revenue.
+
+Revenue & core value next – issues that affect the main purpose of the product (e.g., correct pricing, ability to complete configuration and add to cart) come before cosmetic improvements.
+
+Stability & correctness – fixes that reduce UI inconsistency and prevent subtle rendering issues (e.g., stable React keys, preventing state mismatches) are high value and usually low risk.
+
+Performance investigations – performance/memory issues are important, but they require profiling and time to verify the root cause. I avoid rushed fixes without evidence.
+
+UX polish – improvements like loading indicators or nicer error copy are valuable, but they come after stability and core correctness.
+
+Out of scope / unclear requirements – I deprioritized tasks that were too large for 4 hours (multi-week features) or had conflicting/ambiguous requirements. For example, CFG-144 vs CFG-145 requires a clear product decision (remove Quick Add vs improve it). I documented such cases instead of making risky assumptions.
+
 Anything else you want us to know:
 
-Fix jest minimalny (hook + sygnatura i zwracane pole w `calculatePrice`). Nie zmieniałem komponentu wizualnego ani innych ticketów. Jeśli używacie gdzieś `useDebouncedPriceCalculation`, warto go zabezpieczyć tym samym wzorcem.
+[Your notes]
