@@ -130,15 +130,18 @@ List any assumptions you made to proceed:
 
 ### What went well?
 
-[Your reflection]
+I’m happy with how I debugged the code and how quickly I was able to locate the problem areas. I used the browser DevTools (Inspector + Console) to trace issues from the UI back to the source: I inspected DOM elements, followed class names, and searched the codebase based on what I saw in the rendered component. This helped me navigate the project efficiently, understand the flow, and find the relevant logic (pricing/UI rendering) without wasting time. AI helped me double-check the expected flow of the component and organize my next debugging steps, but I verified everything in the code and in DevTools myself.
 
 ### What was challenging?
 
-[Your reflection]
+Time management under a strict timebox was the main challenge for me. At the beginning, I was a bit too ambitious and spent too much time trying to tackle a high-impact ticket that I couldn’t reproduce reliably. Even though the ticket included reproduction steps, I couldn’t trigger the issue on my machine within the timebox. Without a reproducible case locally and a captured stack trace from my environment, continuing the investigation became inefficient and would have risked a guess-based fix.
+
+Another challenge was maintaining focus once I realised I was behind schedule. At one point, I used AI to help explain parts of the flow, but the output wasn’t reliable for this specific codebase without full context and added noise rather than clarity. I then intentionally switched back to evidence-based debugging (DevTools + reading the source) and focused on issues I could reproduce and validate within the remaining time.
 
 ### What would you do differently with more time?
 
-[Your reflection]
+If I had more time, I would continue with another ticket from the backlog to further stabilise and polish the configurator. Several items looked valuable, but I prioritised verified fixes within the timebox.
+
 
 ---
 
