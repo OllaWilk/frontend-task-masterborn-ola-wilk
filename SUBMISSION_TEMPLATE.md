@@ -52,9 +52,9 @@ List any tickets where you couldn't proceed due to ambiguity:
 
 Describe the most important bugs you identified:
 
-#### Issue 1: [Title]
+#### Issue 1: Incorrect price after rapid option changes
 
-**Ticket(s):** CFG-XXX
+**Ticket(s):** CFG-142
 
 **What was the bug?**
 
