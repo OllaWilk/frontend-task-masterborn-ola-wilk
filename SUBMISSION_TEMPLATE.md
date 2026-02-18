@@ -147,6 +147,9 @@ If I had more time, I would continue with another ticket from the backlog to fur
 
 ## Additional Notes
 
+I worked on two separate branches in my fork and merged them into main after completing the tasks.
+This Pull Request is created to include my analysis and submission details, as requested in the instructions.
+
 I used a simple prioritization framework to decide what to work on within the 4-hour timebox:
 
 Hotfix / Blockers first – anything that crashes the app or breaks the critical user flow must be addressed first, because it can completely prevent usage and directly impact revenue.
@@ -163,4 +166,3 @@ Out of scope / unclear requirements – I deprioritized tasks that were too larg
 
 Anything else you want us to know:
 
-[Your notes]
