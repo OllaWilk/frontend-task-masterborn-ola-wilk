@@ -30,7 +30,7 @@ export function usePriceCalculation(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requestIdRef = useRef<number>(0);
+  const requestVersionRef = useRef<number>(0);
 
   const fetchPrice = useCallback(async () => {
     if (!config) {
@@ -42,26 +42,24 @@ export function usePriceCalculation(
     setIsLoading(true);
     setError(null);
 
-    const myRequestId = ++requestIdRef.current;
+    const myVersion = ++requestVersionRef.current;
 
     try {
-      const response: PriceResponse = await calculatePrice(
-        config,
-        product,
-        myRequestId,
-      );
+      const response: PriceResponse = await calculatePrice(config, product);
 
-      if (response.timestamp === myRequestId) {
+      if (myVersion === requestVersionRef.current) {
         setPrice(response.breakdown);
         setFormattedTotal(response.formattedTotal);
       }
     } catch {
-      if (requestIdRef.current === myRequestId) {
+      if (myVersion === requestVersionRef.current) {
         setError("ERR_PRICE_CALC_FAILED");
         setPrice(null);
       }
     } finally {
-      setIsLoading(false);
+      if (myVersion === requestVersionRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [config, product]);
 
