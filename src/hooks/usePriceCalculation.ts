@@ -1,9 +1,14 @@
 // usePriceCalculation Hook
 // Marcus: "This hook handles async price fetching. A bit janky but works."
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Configuration, Product, PriceBreakdown, PriceResponse } from '../components/ProductConfigurator/types';
-import { calculatePrice } from '../services/api';
+import { useState, useEffect, useCallback, useRef } from "react";
+import type {
+  Configuration,
+  Product,
+  PriceBreakdown,
+  PriceResponse,
+} from "../components/ProductConfigurator/types";
+import { calculatePrice } from "../services/api";
 
 interface UsePriceCalculationResult {
   price: PriceBreakdown | null;
@@ -18,52 +23,52 @@ interface UsePriceCalculationResult {
  */
 export function usePriceCalculation(
   config: Configuration | null,
-  product: Product
+  product: Product,
 ): UsePriceCalculationResult {
   const [price, setPrice] = useState<PriceBreakdown | null>(null);
-  const [formattedTotal, setFormattedTotal] = useState<string>('$0.00');
+  const [formattedTotal, setFormattedTotal] = useState<string>("$0.00");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Track the latest request timestamp
-  const latestRequestRef = useRef<number>(0);
+  // Generation counter: only apply response if it's still the latest request (fixes race without API change)
+  const requestVersionRef = useRef<number>(0);
 
   const fetchPrice = useCallback(async () => {
     if (!config) {
       setPrice(null);
-      setFormattedTotal('$0.00');
+      setFormattedTotal("$0.00");
       return;
     }
 
     setIsLoading(true);
     setError(null);
 
-    const requestTime = Date.now();
-    latestRequestRef.current = requestTime;
+    const myVersion = ++requestVersionRef.current;
 
     try {
       const response: PriceResponse = await calculatePrice(config, product);
 
-      if (response.timestamp >= latestRequestRef.current) {
+      // Ignore stale response: only apply if no newer request was started
+      if (myVersion === requestVersionRef.current) {
         setPrice(response.breakdown);
         setFormattedTotal(response.formattedTotal);
       }
-
     } catch {
-      // Only set error if this is still the latest request
-      if (requestTime === latestRequestRef.current) {
-        setError('ERR_PRICE_CALC_FAILED');
+      if (myVersion === requestVersionRef.current) {
+        setError("ERR_PRICE_CALC_FAILED");
         setPrice(null);
       }
     } finally {
-      setIsLoading(false);
+      if (myVersion === requestVersionRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [config, product]);
 
   // Fetch price when config changes
   useEffect(() => {
     fetchPrice();
-  }, [config?.selections, config?.addOns, config?.quantity]);
+  }, [fetchPrice]);
 
   return {
     price,
@@ -80,10 +85,10 @@ export function usePriceCalculation(
 export function useDebouncedPriceCalculation(
   config: Configuration | null,
   product: Product,
-  delay: number = 300
+  delay: number = 300,
 ): UsePriceCalculationResult {
   const [price, setPrice] = useState<PriceBreakdown | null>(null);
-  const [formattedTotal, setFormattedTotal] = useState<string>('$0.00');
+  const [formattedTotal, setFormattedTotal] = useState<string>("$0.00");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +104,7 @@ export function useDebouncedPriceCalculation(
 
     if (!config) {
       setPrice(null);
-      setFormattedTotal('$0.00');
+      setFormattedTotal("$0.00");
       setIsLoading(false);
       return;
     }
@@ -113,7 +118,7 @@ export function useDebouncedPriceCalculation(
         setFormattedTotal(response.formattedTotal);
         setError(null);
       } catch {
-        setError('ERR_PRICE_CALC_FAILED');
+        setError("ERR_PRICE_CALC_FAILED");
       } finally {
         setIsLoading(false);
       }
@@ -132,13 +137,13 @@ export function useDebouncedPriceCalculation(
     if (config) {
       setIsLoading(true);
       calculatePrice(config, product)
-        .then(response => {
+        .then((response) => {
           setPrice(response.breakdown);
           setFormattedTotal(response.formattedTotal);
           setError(null);
         })
         .catch(() => {
-          setError('ERR_PRICE_CALC_FAILED');
+          setError("ERR_PRICE_CALC_FAILED");
         })
         .finally(() => {
           setIsLoading(false);
